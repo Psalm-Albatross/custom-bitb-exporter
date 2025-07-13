@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 
@@ -9,6 +10,13 @@ import (
 )
 
 func main() {
+	port := flag.String("port", "8080", "Port to listen on")
+	logLevel := flag.String("log.level", "info", "Log level: debug, info, warn, error")
+	cloud := flag.Bool("cloud", false, "Set to true for Bitbucket Cloud, false for Data Center/Server")
+	flag.Parse()
+
+	log.Printf("Starting Bitbucket exporter on :%s/metrics (log level: %s, cloud: %v)", *port, *logLevel, *cloud)
+
 	// Load config
 	cfg, err := LoadConfig()
 	if err != nil {
@@ -16,13 +24,12 @@ func main() {
 	}
 
 	// Create Bitbucket client
-	client := NewBitbucketClient(cfg)
+	client := NewBitbucketClient(cfg, *cloud)
 
 	// Register Prometheus collector
-	collector := NewBitbucketCollector(client)
+	collector := NewBitbucketCollector(client, *logLevel)
 	prometheus.MustRegister(collector)
 
 	http.Handle("/metrics", promhttp.Handler())
-	log.Println("Exporter running on :8080/metrics")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":"+*port, nil))
 }
